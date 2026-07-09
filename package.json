@@ -2,7 +2,7 @@
   "name": "prolato-outreach-pipeline",
   "version": "1.0.0",
   "private": true,
-  "description": "Prolato Clinical Research Center physician outreach tracker with a real shared Postgres backend, deployable on Render.",
+  "description": "Prolato Clinical Research Center physician outreach tracker with a real shared Postgres backend and Microsoft (Outlook) sign-in, deployable on Render.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "express": "^4.19.2",
-    "pg": "^8.11.5"
+    "pg": "^8.11.5",
+    "cookie-parser": "^1.4.6",
+    "jsonwebtoken": "^9.0.2"
   }
 }
