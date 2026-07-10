@@ -126,11 +126,15 @@ tbody td{padding:13px 16px;vertical-align:top;}
 .attempt-meter .dot.filled{background:var(--ochre);}
 .attempt-warning{background:var(--rust-bg);color:var(--rust);padding:8px 12px;border-radius:8px;font-size:12.5px;margin-bottom:16px;}
 .section-title{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin:22px 0 10px;padding-top:14px;border-top:1px solid var(--line);}
-.history-item{background:#FAFBFA;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px;position:relative;}
+.history-item{background:#FAFBFA;border:1px solid var(--line);border-radius:8px;padding:12px 56px 12px 14px;margin-bottom:10px;position:relative;}
 .history-item .h-date{font-weight:600;font-size:13px;}
 .history-item .h-type{display:inline-block;margin-left:8px;font-size:11px;color:var(--muted);background:#EEF1EF;padding:2px 8px;border-radius:10px;}
 .history-item .h-notes{font-size:12.5px;color:var(--muted);margin-top:6px;white-space:pre-wrap;}
 .history-item .h-del{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;}
+.history-item .h-edit{position:absolute;top:10px;right:32px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;}
+.history-item .h-del:hover{color:var(--rust);}
+.history-item .h-edit:hover{color:var(--teal);}
+.history-item-editing{background:#F4F6F4;}
 .history-item .h-del:hover{color:var(--rust);}
 .history-empty{color:var(--muted);font-size:12.5px;font-style:italic;padding:10px 0;}
 .add-attempt-form{background:#F4F6F4;border:1px dashed var(--line);border-radius:8px;padding:14px;margin-top:8px;}
@@ -360,6 +364,7 @@ let filterAttempts = 'any';
 let calYear = 2026, calMonth = 0; // Jan 2026
 let activeView = 'tracker';
 let currentUserEmail = '';
+let editingHistoryId = null;
 
 const STATUS_ORDER = ['Follow Up','Pending Activation','Established','Unresponsive'];
 const STATUS_META = {
@@ -720,13 +725,35 @@ function openDrawer(id){
 
       <div class="section-title">Outreach history</div>
       <div id="historyList">
-        ${sortedHist.length===0 ? '<div class="history-empty">No outreach attempts logged yet.</div>' : sortedHist.map(h=>`
+        ${sortedHist.length===0 ? '<div class="history-empty">No outreach attempts logged yet.</div>' : sortedHist.map(h=>{
+          if(h.hid === editingHistoryId){
+            return `
+            <div class="history-item history-item-editing" data-hid="${h.hid}">
+              <div class="field-row">
+                <div class="field"><label>Date</label><input type="date" class="hist-edit-date" value="${escapeHtml(h.date||'')}"></div>
+                <div class="field">
+                  <label>Type</label>
+                  <select class="hist-edit-type">
+                    <option value="" ${!h.type?'selected':''}>— none —</option>
+                    ${['Site Visit','Call','Email','WhatsApp Message','Letter/Fax'].map(t=>`<option ${h.type===t?'selected':''}>${t}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+              <div class="field"><label>Notes</label><textarea class="hist-edit-notes">${escapeHtml(h.notes||'')}</textarea></div>
+              <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn ghost small h-edit-cancel" data-hid="${h.hid}">Cancel</button>
+                <button class="btn small h-edit-save" data-hid="${h.hid}">Save</button>
+              </div>
+            </div>`;
+          }
+          return `
           <div class="history-item" data-hid="${h.hid}">
-            <button class="h-del" data-hid="${h.hid}">&times;</button>
+            <button class="h-del" data-hid="${h.hid}" title="Delete">&times;</button>
+            <button class="h-edit" data-hid="${h.hid}" title="Edit">&#9998;</button>
             <span class="h-date">${escapeHtml(h.date||'No date')}</span>${h.type?`<span class="h-type">${escapeHtml(h.type)}</span>`:''}
             ${h.notes ? `<div class="h-notes">${escapeHtml(h.notes)}</div>` : ''}
           </div>
-        `).join('')}
+        `;}).join('')}
       </div>
       <button class="btn ghost small" id="showAddAttempt" ${attempts>=MAX_ATTEMPTS?'':''}>+ Log an outreach attempt</button>
       <div class="add-attempt-form" id="addAttemptForm" style="display:none;">
@@ -836,6 +863,41 @@ function openDrawer(id){
       openDrawer(id);
     });
   });
+  drawer.querySelectorAll('.h-edit').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      syncFieldsFromDom();
+      editingHistoryId = parseInt(btn.dataset.hid);
+      openDrawer(id);
+    });
+  });
+  drawer.querySelectorAll('.h-edit-cancel').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      editingHistoryId = null;
+      openDrawer(id);
+    });
+  });
+  drawer.querySelectorAll('.h-edit-save').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const hid = parseInt(btn.dataset.hid);
+      const block = btn.closest('.history-item');
+      const date = block.querySelector('.hist-edit-date').value;
+      const type = block.querySelector('.hist-edit-type').value;
+      const notes = block.querySelector('.hist-edit-notes').value.trim();
+      const today = new Date().toISOString().slice(0,10);
+      if(date && date > today){
+        showAlert("Outreach attempts can't be dated in the future — for upcoming visits, use the Team Visit Calendar tab.");
+        return;
+      }
+      const h = (r.History||[]).find(x=>x.hid===hid);
+      if(h){ h.date = date; h.type = type; h.notes = notes; }
+      editingHistoryId = null;
+      syncFieldsFromDom();
+      openDrawer(id);
+    });
+  });
 
   document.getElementById('deleteContact').onclick = async ()=>{
     if(!(await showConfirm(`Delete ${practiceLine(r)} from the tracker? This permanently removes the contact, its outreach history, and any scheduled visit. This can't be undone.`, 'Yes, delete contact'))) return;
@@ -873,7 +935,7 @@ function openDrawer(id){
     if(activeView==='calendar') renderCalendar();
   };
 }
-function closeDrawer(){ document.getElementById('drawerOverlay').classList.remove('open'); }
+function closeDrawer(){ document.getElementById('drawerOverlay').classList.remove('open'); editingHistoryId = null; }
 
 /* ---------------- Add contact modal ---------------- */
 function openAddModal(){
