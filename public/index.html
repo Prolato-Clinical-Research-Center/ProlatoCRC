@@ -54,8 +54,8 @@ h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
 .stage-bar-fill{height:100%;border-radius:2px;}
 
 main{max-width:1360px;margin:0 auto;padding:52px 28px 60px;}
-#trackerView, #calendarView{display:none;}
-#trackerView.show, #calendarView.show{display:block;}
+#trackerView, #calendarView, #clinicalTrialsView{display:none;}
+#trackerView.show, #calendarView.show, #clinicalTrialsView.show{display:block;}
 
 .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
 .search-wrap{position:relative;flex:1;min-width:220px;}
@@ -163,6 +163,11 @@ tbody td{padding:13px 16px;vertical-align:top;}
 .cal-day.today .cal-daynum{background:var(--teal);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;}
 .cal-daynum{font-size:12.5px;font-weight:600;}
 .cal-event{font-size:10.5px;background:var(--sage-bg);color:var(--sage);border-radius:5px;padding:2px 6px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cal-event.type-sitevisit{background:var(--sage-bg);color:var(--sage);}
+.cal-event.type-call{background:var(--blue-bg);color:var(--blue);}
+.cal-event.type-email{background:var(--ochre-bg);color:var(--ochre);}
+.cal-event.type-other{background:var(--slate-bg);color:var(--slate);}
+.cal-event .cal-audience{font-weight:700;margin-right:4px;opacity:.75;}
 .cal-event.type-followup{background:var(--ochre-bg);color:var(--ochre);}
 .cal-event.type-developing{background:var(--blue-bg);color:var(--blue);}
 .cal-event.type-extra{background:var(--gold-bg);color:var(--gold);}
@@ -210,7 +215,7 @@ footer{max-width:1360px;margin:0 auto;padding:0 28px 40px;color:var(--muted);fon
   <div class="topbar-inner">
     <div class="brand-block">
       <div class="brand-eyebrow">Prolato Clinical Research Center · Business Development</div>
-      <h1 class="brand-title">Physician Outreach Pipeline</h1>
+      <h1 class="brand-title">Prolato Outreach Pipeline</h1>
       <div class="brand-sub">Houston-area referral network — site visits, calls &amp; follow-ups</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
@@ -220,13 +225,14 @@ footer{max-width:1360px;margin:0 auto;padding:0 28px 40px;color:var(--muted);fon
   </div>
   <div class="tabs-row">
     <div class="tabs">
-      <button class="tab active" id="tabTracker">Tracker</button>
-      <button class="tab" id="tabCalendar">Team Visit Calendar</button>
+      <button class="tab" id="tabCalendar">Team Calendar</button>
+      <button class="tab active" id="tabTracker">Physicians</button>
+      <button class="tab" id="tabTrials">Clinical Trials</button>
     </div>
   </div>
 </div>
 
-<div class="stage-strip">
+<div class="stage-strip" id="stageStrip">
   <div class="stage-row" id="stageRow"></div>
 </div>
 
@@ -294,11 +300,15 @@ footer{max-width:1360px;margin:0 auto;padding:0 28px 40px;color:var(--muted);fon
       <button class="btn ghost" id="exportIcsBtn">⤓ Export to Outlook (.ics)</button>
     </div>
     <div style="font-size:11.5px;color:var(--muted);margin:-10px 0 16px;">Exports upcoming scheduled visits as a calendar file — open it, or import it in Outlook, to add them to your own calendar. This is a one-time snapshot, not a live sync.</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:6px;font-size:12px;color:var(--muted);">
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--sage);margin-right:5px;"></span>Site visit</span>
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--blue);margin-right:5px;"></span>Call</span>
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--ochre);margin-right:5px;"></span>Email</span>
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--slate);margin-right:5px;"></span>Other / unspecified</span>
+    </div>
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:var(--muted);">
-      <span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--sage);margin-right:5px;"></span>Logged outreach attempt</span>
-      <span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--ochre);margin-right:5px;"></span>Next follow-up scheduled</span>
-      <span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--blue);margin-right:5px;"></span>In active discussion</span>
-      <span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--gold);margin-right:5px;"></span>Ad-hoc scheduled visit</span>
+      <span><strong style="opacity:.75;">MSL</strong> — visit with a Medical Science Liaison</span>
+      <span><strong style="opacity:.75;">MD</strong> — physician visit</span>
     </div>
     <div class="cal-header">
       <div class="cal-nav">
@@ -312,8 +322,40 @@ footer{max-width:1360px;margin:0 auto;padding:0 28px 40px;color:var(--muted);fon
     <div class="agenda-list" id="agendaList"></div>
   </div>
 
+  <div id="clinicalTrialsView">
+    <div class="controls">
+      <div class="search-wrap">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="ctSearchInput" type="text" placeholder="Search company, study, NCT #, therapeutic area…">
+        <button type="button" class="search-clear" id="ctSearchClearBtn" aria-label="Clear search">&times;</button>
+      </div>
+      <select id="ctPhaseFilter"></select>
+      <button class="btn" id="ctAddBtn">+ Add trial</button>
+    </div>
+    <div class="count-line" id="ctCountLine"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Company Name</th>
+            <th>Live Pipeline Link</th>
+            <th>NCT #</th>
+            <th>Study Name</th>
+            <th>Phase</th>
+            <th>Therapeutic Area</th>
+          </tr>
+        </thead>
+        <tbody id="ctTableBody"></tbody>
+      </table>
+      <div class="empty-state" id="ctEmptyState" style="display:none;">No trials match your search yet.</div>
+    </div>
+  </div>
+
   <footer>Data is shared across everyone using this link — edits and scheduled visits save automatically for the whole team.</footer>
 </main>
+
+<div class="overlay" id="ctDrawerOverlay"><div class="drawer" id="ctDrawer"></div></div>
+<div class="modal-overlay" id="ctAddOverlay"><div class="modal" id="ctAddModal"></div></div>
 
 <div class="overlay" id="drawerOverlay"><div class="drawer" id="drawer"></div></div>
 <div class="modal-overlay" id="addOverlay"><div class="modal" id="addModal"></div></div>
@@ -466,7 +508,7 @@ function convertDueVisits(){
       r.History.push({
         hid: Date.now() + Math.floor(Math.random()*1000),
         date: r.ScheduledVisit.date,
-        type: '',
+        type: r.ScheduledVisit.visitType || '',
         notes: r.ScheduledVisit.notes || ''
       });
       r.ScheduledVisit = null;
@@ -519,13 +561,18 @@ function showConfirm(message, confirmLabel){
 /* ---------------- Tabs ---------------- */
 document.getElementById('tabTracker').addEventListener('click', ()=> switchView('tracker'));
 document.getElementById('tabCalendar').addEventListener('click', ()=> switchView('calendar'));
+document.getElementById('tabTrials').addEventListener('click', ()=> switchView('trials'));
 function switchView(v){
   activeView = v;
   document.getElementById('tabTracker').classList.toggle('active', v==='tracker');
   document.getElementById('tabCalendar').classList.toggle('active', v==='calendar');
+  document.getElementById('tabTrials').classList.toggle('active', v==='trials');
   document.getElementById('trackerView').classList.toggle('show', v==='tracker');
   document.getElementById('calendarView').classList.toggle('show', v==='calendar');
+  document.getElementById('clinicalTrialsView').classList.toggle('show', v==='trials');
+  document.getElementById('stageStrip').style.display = (v==='trials') ? 'none' : '';
   if(v==='calendar') renderCalendar();
+  if(v==='trials') renderCTAll();
 }
 
 /* ---------------- Stats ---------------- */
@@ -1004,17 +1051,31 @@ function openAddModal(){
 }
 
 /* ---------------- Calendar ---------------- */
+function visitTypeClass(type){
+  const t = (type||'').toLowerCase();
+  if(t.includes('site')) return 'sitevisit';
+  if(t.includes('call')) return 'call';
+  if(t.includes('email')) return 'email';
+  return 'other';
+}
+function audienceBadge(aud){
+  return aud === 'MSL' ? 'MSL' : 'MD';
+}
 function allCalendarEvents(){
   const evts = [];
   state.records.forEach(r=>{
     if(r.ScheduledVisit && r.ScheduledVisit.date){
+      const visitType = r.ScheduledVisit.visitType || 'Site Visit';
+      const audience = r.ScheduledVisit.audience || 'Physician';
       evts.push({
         date: r.ScheduledVisit.date,
         title: practiceLine(r),
         sub: [r.Specialty, doctorSub(r)].filter(Boolean).join(' · '),
         address: (r.Addresses||[]).join('; '),
         notes: r.ScheduledVisit.notes||'',
-        type: r.Status==='Pending Activation' ? 'developing' : 'followup',
+        type: 'followup',
+        cls: visitTypeClass(visitType),
+        visitType, audience,
         recordId: r.id
       });
     }
@@ -1027,13 +1088,18 @@ function allCalendarEvents(){
           address: (r.Addresses||[]).join('; '),
           notes: h.notes,
           type: 'attempt',
+          cls: visitTypeClass(h.type),
+          visitType: h.type || '',
+          audience: 'Physician',
           recordId: r.id
         });
       }
     });
   });
   state.events.forEach(e=>{
-    evts.push({date:e.date, title:e.title, sub:[e.specialty,e.doctor].filter(Boolean).join(' · '), address:e.address, type:'extra', eventId:e.id, notes:e.notes});
+    const visitType = e.visitType || 'Site Visit';
+    const audience = e.audience || 'Physician';
+    evts.push({date:e.date, title:e.title, sub:[e.specialty,e.doctor].filter(Boolean).join(' · '), address:e.address, type:'extra', cls: visitTypeClass(visitType), visitType, audience, eventId:e.id, notes:e.notes});
   });
   return evts;
 }
@@ -1068,7 +1134,7 @@ function renderCalendar(){
     const more = dayEvents.length - shown.length;
     return `<div class="cal-day ${c.other?'other-month':''} ${isToday?'today':''}" data-date="${dateStr||''}">
       <div class="cal-daynum">${c.day}</div>
-      ${shown.map(e=>`<div class="cal-event type-${e.type}">${escapeHtml(e.title)}</div>`).join('')}
+      ${shown.map(e=>`<div class="cal-event type-${e.cls||e.type}"><span class="cal-audience">${audienceBadge(e.audience)}</span>${escapeHtml(e.title)}</div>`).join('')}
       ${more>0?`<div class="cal-more">+${more} more</div>`:''}
     </div>`;
   }).join('');
@@ -1088,7 +1154,7 @@ function renderCalendar(){
       <div class="agenda-item" data-date="${e.date}">
         <div class="agenda-date">${e.date}</div>
         <div class="agenda-main">
-          <div class="a-title">${escapeHtml(e.title)}</div>
+          <div class="a-title"><span class="cal-audience" style="color:var(--muted);">${audienceBadge(e.audience)}</span>${escapeHtml(e.title)}</div>
           <div class="a-sub">${escapeHtml(e.sub||'')}${e.address?' — '+escapeHtml(e.address):''}</div>
         </div>
       </div>
@@ -1128,6 +1194,17 @@ function openDayModal(dateStr){
             <div class="field"><label>Date</label><input type="date" class="ev-date" value="${escapeHtml(e.date)}"></div>
             <div class="field"><label>Title</label><input type="text" class="ev-title" value="${escapeHtml(e.title)}"></div>
           </div>
+          <div class="field-row">
+            <div class="field"><label>Visit with</label><select class="ev-audience">
+              <option value="Physician" ${e.audience==='Physician'?'selected':''}>Physician visit</option>
+              <option value="MSL" ${e.audience==='MSL'?'selected':''}>MSL visit</option>
+            </select></div>
+            <div class="field"><label>Visit type</label><select class="ev-visittype">
+              <option ${e.visitType==='Site Visit'?'selected':''}>Site Visit</option>
+              <option ${e.visitType==='Call'?'selected':''}>Call</option>
+              <option ${e.visitType==='Email'?'selected':''}>Email</option>
+            </select></div>
+          </div>
           <div class="field"><label>Address</label><input type="text" class="ev-address" value="${escapeHtml(e.address||'')}"></div>
           <div class="field"><label>Notes</label><textarea class="ev-notes">${escapeHtml(e.notes||'')}</textarea></div>
           <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -1143,6 +1220,17 @@ function openDayModal(dateStr){
         <div class="h-notes">${escapeHtml(e.sub||'')}${e.address?'<br>'+escapeHtml(e.address):''}</div>
         <div class="field-row" style="margin-top:10px;">
           <div class="field"><label>Visit date</label><input type="date" class="ev-date" value="${escapeHtml(e.date)}"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Visit with</label><select class="ev-audience">
+            <option value="Physician" ${e.audience==='Physician'?'selected':''}>Physician visit</option>
+            <option value="MSL" ${e.audience==='MSL'?'selected':''}>MSL visit</option>
+          </select></div>
+          <div class="field"><label>Visit type</label><select class="ev-visittype">
+            <option ${e.visitType==='Site Visit'?'selected':''}>Site Visit</option>
+            <option ${e.visitType==='Call'?'selected':''}>Call</option>
+            <option ${e.visitType==='Email'?'selected':''}>Email</option>
+          </select></div>
         </div>
         <div class="field"><label>Visit notes</label><textarea class="ev-notes" placeholder="What's the plan for this visit?">${escapeHtml(e.notes||'')}</textarea></div>
         <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -1174,7 +1262,9 @@ function openDayModal(dateStr){
       if(!r) return;
       r.ScheduledVisit = {
         date: block.querySelector('.ev-date').value,
-        notes: block.querySelector('.ev-notes').value.trim()
+        notes: block.querySelector('.ev-notes').value.trim(),
+        audience: block.querySelector('.ev-audience').value,
+        visitType: block.querySelector('.ev-visittype').value
       };
       await saveData();
       convertDueVisits();
@@ -1201,6 +1291,8 @@ function openDayModal(dateStr){
       ev.title = block.querySelector('.ev-title').value.trim() || ev.title;
       ev.address = block.querySelector('.ev-address').value.trim();
       ev.notes = block.querySelector('.ev-notes').value.trim();
+      ev.audience = block.querySelector('.ev-audience').value;
+      ev.visitType = block.querySelector('.ev-visittype').value;
       await saveData();
       renderCalendar();
       openDayModal(ev.date || dateStr);
@@ -1234,6 +1326,23 @@ function openScheduleModal(prefillDate){
         <div class="field"><label>Visit title / practice</label><input id="schedTitle" placeholder="Only needed if ad-hoc"></div>
       </div>
       <div class="field-row">
+        <div class="field">
+          <label>Visit with</label>
+          <select id="schedAudience">
+            <option value="Physician">Physician visit</option>
+            <option value="MSL">MSL visit</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Visit type</label>
+          <select id="schedVisitType">
+            <option value="Site Visit">Site Visit</option>
+            <option value="Call">Call</option>
+            <option value="Email">Email</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
         <div class="field"><label>Specialty</label><input id="schedSpecialty"></div>
         <div class="field"><label>Who (doctor)</label><input id="schedDoctor"></div>
       </div>
@@ -1260,9 +1369,11 @@ function openScheduleModal(prefillDate){
     const date = document.getElementById('schedDate').value;
     if(!date){ showAlert('Pick a date.'); return; }
     const contactId = document.getElementById('schedContact').value;
+    const audience = document.getElementById('schedAudience').value;
+    const visitType = document.getElementById('schedVisitType').value;
     if(contactId){
       const r = state.records.find(x=>x.id===parseInt(contactId));
-      r.ScheduledVisit = { date, notes: document.getElementById('schedNotes').value.trim() };
+      r.ScheduledVisit = { date, notes: document.getElementById('schedNotes').value.trim(), audience, visitType };
     }else{
       const title = document.getElementById('schedTitle').value.trim();
       if(!title){ showAlert('Enter a title for this ad-hoc visit, or link it to an existing contact.'); return; }
@@ -1272,7 +1383,8 @@ function openScheduleModal(prefillDate){
         specialty: document.getElementById('schedSpecialty').value.trim(),
         doctor: document.getElementById('schedDoctor').value.trim(),
         address: document.getElementById('schedAddress').value.trim(),
-        notes: document.getElementById('schedNotes').value.trim()
+        notes: document.getElementById('schedNotes').value.trim(),
+        audience, visitType
       });
     }
     await saveData();
@@ -1282,6 +1394,392 @@ function openScheduleModal(prefillDate){
     renderAll();
   };
 }
+
+/* ================= Clinical Trials tab ================= */
+const CT_STORAGE_KEY = 'clinical-trials-tracker-v1';
+let ctState = { records: [] };
+let ctFiltered = [];
+let ctSearchTerm = '';
+let ctPhaseFilter = 'All';
+let ctEditingHistoryId = null;
+
+const CT_PHASES = ['Preclinical','Phase I','Phase I/II','Phase II','Phase II/III','Phase III','Phase IV','N/A'];
+const CT_STATUS_ORDER = ['Identifying','Reached Out','In Discussion','Active Site','Not Pursuing'];
+const CT_STATUS_META = {
+  'Identifying': {cls:'followup'},
+  'Reached Out': {cls:'futureinterest'},
+  'In Discussion': {cls:'developing'},
+  'Active Site': {cls:'established'},
+  'Not Pursuing': {cls:'dnc'},
+  '': {cls:'followup'}
+};
+const CT_HISTORY_TYPES = ['Email','Call','Visit'];
+
+function ctPillHtml(status){
+  const meta = CT_STATUS_META[status] || CT_STATUS_META[''];
+  return `<span class="pill ${meta.cls}">${escapeHtml(status||'Identifying')}</span>`;
+}
+
+async function loadCTData(){
+  try{
+    const res = await storage.get(CT_STORAGE_KEY);
+    if(res && res.value){
+      ctState = JSON.parse(res.value);
+      if(!ctState.records) ctState.records = [];
+      ctState.records.forEach(r=>{
+        if(!r.Contacts) r.Contacts = [];
+        if(!r.History) r.History = [];
+        r.Contacts.forEach(c=>{ if(!c.id) c.id = Date.now()+Math.floor(Math.random()*1000); });
+        r.History.forEach(h=>{ if(!h.hid) h.hid = Date.now()+Math.floor(Math.random()*1000); });
+      });
+      return;
+    }
+  }catch(e){}
+  ctState = { records: [] };
+}
+async function saveCTData(flash=true){
+  try{
+    await storage.set(CT_STORAGE_KEY, JSON.stringify(ctState));
+    if(flash) flashSaved();
+  }catch(e){ console.error('Storage error', e); }
+}
+
+function populateCTPhaseFilter(){
+  const sel = document.getElementById('ctPhaseFilter');
+  const phases = Array.from(new Set(ctState.records.map(r=>r.Phase).filter(Boolean))).sort();
+  sel.innerHTML = '<option value="All">All phases</option>' + phases.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+  sel.value = ctPhaseFilter;
+}
+function ctLastHistory(r){
+  if(!r.History || r.History.length===0) return null;
+  return [...r.History].sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+}
+function applyCTFilters(){
+  ctFiltered = ctState.records.filter(r=>{
+    if(ctPhaseFilter!=='All' && r.Phase!==ctPhaseFilter) return false;
+    if(ctSearchTerm){
+      const hay = [r.CompanyName, r.NCT, r.StudyName, r.TherapeuticArea, r.Indication, r.Description].join(' ').toLowerCase();
+      if(!hay.includes(ctSearchTerm.toLowerCase())) return false;
+    }
+    return true;
+  });
+  ctFiltered.sort((a,b)=> (a.CompanyName||'').localeCompare(b.CompanyName||''));
+}
+function renderCTTable(){
+  const body = document.getElementById('ctTableBody');
+  const empty = document.getElementById('ctEmptyState');
+  document.getElementById('ctCountLine').textContent = `Showing ${ctFiltered.length} of ${ctState.records.length} trials`;
+  if(ctFiltered.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  body.innerHTML = ctFiltered.map(r=>`
+    <tr data-id="${r.id}">
+      <td><div class="doc-name">${escapeHtml(r.CompanyName||'Unnamed')}</div></td>
+      <td>${r.PipelineLink ? `<a href="${escapeHtml(r.PipelineLink)}" target="_blank" rel="noopener" class="ct-link">View pipeline &#8599;</a>` : '<span style="color:var(--muted);">—</span>'}</td>
+      <td>${escapeHtml(r.NCT||'')}</td>
+      <td>${escapeHtml(r.StudyName||'')}</td>
+      <td>${escapeHtml(r.Phase||'')}</td>
+      <td>${escapeHtml(r.TherapeuticArea||'')}</td>
+    </tr>`).join('');
+  body.querySelectorAll('tr').forEach(tr=>{
+    tr.addEventListener('click', ()=> openCTDrawer(parseInt(tr.dataset.id)));
+  });
+  body.querySelectorAll('.ct-link').forEach(a=>{
+    a.addEventListener('click', e=> e.stopPropagation());
+  });
+}
+function renderCTAll(){
+  populateCTPhaseFilter();
+  applyCTFilters();
+  renderCTTable();
+}
+
+/* ---- Clinical Trials drawer ---- */
+function openCTDrawer(id){
+  const r = ctState.records.find(x=>x.id===id);
+  if(!r) return;
+  const drawer = document.getElementById('ctDrawer');
+  const sortedHist = [...(r.History||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+
+  drawer.innerHTML = `
+    <div class="drawer-head">
+      <button class="drawer-close" id="ctCloseDrawer">&times;</button>
+      <h2>${escapeHtml(r.CompanyName||'Unnamed company')}</h2>
+      <div class="sub">${escapeHtml(r.StudyName||'')}</div>
+    </div>
+    <div class="drawer-body">
+      <div class="field"><label>Company name</label><input type="text" id="ctEditCompany" value="${escapeHtml(r.CompanyName||'')}"></div>
+      <div class="field-row">
+        <div class="field"><label>NCT #</label><input type="text" id="ctEditNCT" value="${escapeHtml(r.NCT||'')}"></div>
+        <div class="field"><label>Live pipeline link</label><input type="text" id="ctEditLink" value="${escapeHtml(r.PipelineLink||'')}" placeholder="https://…"></div>
+      </div>
+      <div class="field"><label>Study name</label><input type="text" id="ctEditStudyName" value="${escapeHtml(r.StudyName||'')}"></div>
+      <div class="field"><label>Study description</label><textarea id="ctEditDescription" placeholder="What is this study evaluating?">${escapeHtml(r.Description||'')}</textarea></div>
+      <div class="field-row">
+        <div class="field">
+          <label>Phase</label>
+          <select id="ctEditPhase">${CT_PHASES.map(p=>`<option value="${p}" ${r.Phase===p?'selected':''}>${p}</option>`).join('')}</select>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="ctEditStatus">${CT_STATUS_ORDER.map(s=>`<option value="${s}" ${r.Status===s?'selected':''}>${s}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="field"><label>Indication</label><input type="text" id="ctEditIndication" value="${escapeHtml(r.Indication||'')}"></div>
+
+      <div class="section-title" style="border-top:none;padding-top:0;">Contacts</div>
+      <div id="ctContactList">
+        ${(r.Contacts&&r.Contacts.length ? r.Contacts : [{id:'',name:'',role:'',email:'',phone:''}]).map(c=>`
+          <div class="doctor-block" data-cid="${c.id||''}">
+            <div class="field-row">
+              <div class="field"><label>Name</label><input type="text" class="ct-c-name" value="${escapeHtml(c.name||'')}" placeholder="Full name"></div>
+              <div class="field"><label>Role</label><input type="text" class="ct-c-role" value="${escapeHtml(c.role||'')}" placeholder="e.g. Clinical Ops Lead"></div>
+              <button type="button" class="list-del ct-c-del" title="Remove this contact">&times;</button>
+            </div>
+            <div class="field-row">
+              <div class="field"><label>Email</label><input type="text" class="ct-c-email" value="${escapeHtml(c.email||'')}"></div>
+              <div class="field"><label>Phone</label><input type="text" class="ct-c-phone" value="${escapeHtml(c.phone||'')}"></div>
+            </div>
+          </div>`).join('')}
+      </div>
+      <button class="btn ghost small" type="button" id="ctAddContactBtn">+ Add another contact</button>
+
+      <div class="section-title">Outreach history</div>
+      <div id="ctHistoryList">
+        ${sortedHist.length===0 ? '<div class="history-empty">No outreach logged yet.</div>' : sortedHist.map(h=>{
+          if(h.hid === ctEditingHistoryId){
+            return `
+            <div class="history-item history-item-editing" data-hid="${h.hid}">
+              <div class="field-row">
+                <div class="field"><label>Date</label><input type="date" class="ct-h-edit-date" value="${escapeHtml(h.date||'')}"></div>
+                <div class="field">
+                  <label>Type</label>
+                  <select class="ct-h-edit-type">
+                    <option value="" ${!h.type?'selected':''}>— none —</option>
+                    ${CT_HISTORY_TYPES.map(t=>`<option ${h.type===t?'selected':''}>${t}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+              <div class="field"><label>Notes</label><textarea class="ct-h-edit-notes">${escapeHtml(h.notes||'')}</textarea></div>
+              <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn ghost small ct-h-edit-cancel" data-hid="${h.hid}">Cancel</button>
+                <button class="btn small ct-h-edit-save" data-hid="${h.hid}">Save</button>
+              </div>
+            </div>`;
+          }
+          return `
+          <div class="history-item" data-hid="${h.hid}">
+            <button class="h-del ct-h-del" data-hid="${h.hid}" title="Delete">&times;</button>
+            <button class="h-edit ct-h-edit" data-hid="${h.hid}" title="Edit">&#9998;</button>
+            <span class="h-date">${escapeHtml(h.date||'No date')}</span>${h.type?`<span class="h-type">${escapeHtml(h.type)}</span>`:''}
+            ${h.notes ? `<div class="h-notes">${escapeHtml(h.notes)}</div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+      <button class="btn ghost small" id="ctShowAddHistory">+ Log outreach</button>
+      <div class="add-attempt-form" id="ctAddHistoryForm" style="display:none;">
+        <div class="field-row">
+          <div class="field"><label>Date</label><input type="date" id="ctNewHistDate"></div>
+          <div class="field">
+            <label>Type</label>
+            <select id="ctNewHistType">
+              <option value="">— none —</option>
+              ${CT_HISTORY_TYPES.map(t=>`<option>${t}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="field"><label>Notes</label><textarea id="ctNewHistNotes" placeholder="What happened?"></textarea></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button class="btn ghost small" id="ctCancelHist">Cancel</button>
+          <button class="btn small" id="ctConfirmHist">Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn danger" id="ctDeleteTrial">Delete</button>
+      <button class="btn ghost" id="ctCancelEdit">Close</button>
+      <button class="btn" id="ctSaveEdit">Save changes</button>
+    </div>
+  `;
+  document.getElementById('ctDrawerOverlay').classList.add('open');
+  document.getElementById('ctCloseDrawer').onclick = closeCTDrawer;
+  document.getElementById('ctCancelEdit').onclick = closeCTDrawer;
+
+  function ctSyncFieldsFromDom(){
+    r.CompanyName = document.getElementById('ctEditCompany').value.trim();
+    r.NCT = document.getElementById('ctEditNCT').value.trim();
+    r.PipelineLink = document.getElementById('ctEditLink').value.trim();
+    r.StudyName = document.getElementById('ctEditStudyName').value.trim();
+    r.Description = document.getElementById('ctEditDescription').value.trim();
+    r.Phase = document.getElementById('ctEditPhase').value;
+    r.Status = document.getElementById('ctEditStatus').value;
+    r.Indication = document.getElementById('ctEditIndication').value.trim();
+    r.Contacts = Array.from(document.querySelectorAll('#ctContactList .doctor-block')).map(block=>{
+      const name = block.querySelector('.ct-c-name').value.trim();
+      const role = block.querySelector('.ct-c-role').value.trim();
+      const email = block.querySelector('.ct-c-email').value.trim();
+      const phone = block.querySelector('.ct-c-phone').value.trim();
+      const existingId = block.dataset.cid;
+      return (name||role||email||phone) ? {id: existingId || (Date.now()+Math.floor(Math.random()*1000)), name, role, email, phone} : null;
+    }).filter(Boolean);
+  }
+
+  document.getElementById('ctAddContactBtn').onclick = ()=>{
+    document.getElementById('ctContactList').insertAdjacentHTML('beforeend', `
+      <div class="doctor-block" data-cid="">
+        <div class="field-row">
+          <div class="field"><label>Name</label><input type="text" class="ct-c-name" placeholder="Full name"></div>
+          <div class="field"><label>Role</label><input type="text" class="ct-c-role" placeholder="e.g. Clinical Ops Lead"></div>
+          <button type="button" class="list-del ct-c-del" title="Remove this contact">&times;</button>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Email</label><input type="text" class="ct-c-email"></div>
+          <div class="field"><label>Phone</label><input type="text" class="ct-c-phone"></div>
+        </div>
+      </div>`);
+  };
+  drawer.onclick = (e)=>{
+    if(e.target.classList.contains('ct-c-del')){
+      e.target.closest('.doctor-block').remove();
+    }
+  };
+
+  document.getElementById('ctShowAddHistory').onclick = ()=>{
+    document.getElementById('ctAddHistoryForm').style.display='block';
+    document.getElementById('ctNewHistDate').value = new Date().toISOString().slice(0,10);
+  };
+  document.getElementById('ctCancelHist').onclick = ()=>{
+    document.getElementById('ctAddHistoryForm').style.display='none';
+  };
+  document.getElementById('ctConfirmHist').onclick = ()=>{
+    const date = document.getElementById('ctNewHistDate').value;
+    const type = document.getElementById('ctNewHistType').value;
+    const notes = document.getElementById('ctNewHistNotes').value.trim();
+    if(!date && !notes){ showAlert('Add at least a date or a note for this entry.'); return; }
+    if(!r.History) r.History = [];
+    r.History.push({hid: Date.now(), date, type, notes});
+    ctSyncFieldsFromDom();
+    openCTDrawer(id);
+  };
+  drawer.querySelectorAll('.ct-h-del').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const hid = parseInt(btn.dataset.hid);
+      r.History = (r.History||[]).filter(h=>h.hid!==hid);
+      ctSyncFieldsFromDom();
+      openCTDrawer(id);
+    });
+  });
+  drawer.querySelectorAll('.ct-h-edit').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      ctSyncFieldsFromDom();
+      ctEditingHistoryId = parseInt(btn.dataset.hid);
+      openCTDrawer(id);
+    });
+  });
+  drawer.querySelectorAll('.ct-h-edit-cancel').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      ctEditingHistoryId = null;
+      openCTDrawer(id);
+    });
+  });
+  drawer.querySelectorAll('.ct-h-edit-save').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const hid = parseInt(btn.dataset.hid);
+      const block = btn.closest('.history-item');
+      const date = block.querySelector('.ct-h-edit-date').value;
+      const type = block.querySelector('.ct-h-edit-type').value;
+      const notes = block.querySelector('.ct-h-edit-notes').value.trim();
+      const h = (r.History||[]).find(x=>x.hid===hid);
+      if(h){ h.date = date; h.type = type; h.notes = notes; }
+      ctEditingHistoryId = null;
+      ctSyncFieldsFromDom();
+      openCTDrawer(id);
+    });
+  });
+
+  document.getElementById('ctDeleteTrial').onclick = async ()=>{
+    if(!(await showConfirm(`Delete ${r.CompanyName||'this trial'} from the Clinical Trials tracker? This permanently removes the trial, its contacts, and its outreach history. This can't be undone.`, 'Yes, delete trial'))) return;
+    ctState.records = ctState.records.filter(x=>x.id!==id);
+    await saveCTData();
+    closeCTDrawer();
+    renderCTAll();
+  };
+  document.getElementById('ctSaveEdit').onclick = async ()=>{
+    ctSyncFieldsFromDom();
+    await saveCTData();
+    closeCTDrawer();
+    renderCTAll();
+  };
+}
+function closeCTDrawer(){ document.getElementById('ctDrawerOverlay').classList.remove('open'); ctEditingHistoryId = null; }
+
+/* ---- Add trial modal ---- */
+function openCTAddModal(){
+  const modal = document.getElementById('ctAddModal');
+  modal.innerHTML = `
+    <div class="modal-head"><h2>Add a clinical trial</h2></div>
+    <div class="modal-body">
+      <div class="field"><label>Company name</label><input id="ctNewCompany"></div>
+      <div class="field-row">
+        <div class="field"><label>Live pipeline link</label><input id="ctNewLink" placeholder="https://…"></div>
+        <div class="field"><label>NCT #</label><input id="ctNewNCT" placeholder="NCT01234567"></div>
+      </div>
+      <div class="field"><label>Study name</label><input id="ctNewStudyName"></div>
+      <div class="field-row">
+        <div class="field">
+          <label>Phase</label>
+          <select id="ctNewPhase">${CT_PHASES.map(p=>`<option value="${p}">${p}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>Therapeutic area</label><input id="ctNewTherapeuticArea"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost" id="ctCancelAdd">Cancel</button>
+      <button class="btn" id="ctConfirmAdd">Add trial</button>
+    </div>
+  `;
+  document.getElementById('ctAddOverlay').classList.add('open');
+  document.getElementById('ctCancelAdd').onclick = ()=> document.getElementById('ctAddOverlay').classList.remove('open');
+  document.getElementById('ctConfirmAdd').onclick = async ()=>{
+    const company = document.getElementById('ctNewCompany').value.trim();
+    const studyName = document.getElementById('ctNewStudyName').value.trim();
+    if(!company && !studyName){ showAlert('Enter at least a company name or study name.'); return; }
+    const maxId = ctState.records.reduce((m,r)=>Math.max(m,r.id||0),0);
+    ctState.records.push({
+      id: maxId+1,
+      CompanyName: company,
+      PipelineLink: document.getElementById('ctNewLink').value.trim(),
+      NCT: document.getElementById('ctNewNCT').value.trim(),
+      StudyName: studyName,
+      Phase: document.getElementById('ctNewPhase').value,
+      TherapeuticArea: document.getElementById('ctNewTherapeuticArea').value.trim(),
+      Description: '', Status: 'Identifying', Indication: '',
+      Contacts: [], History: []
+    });
+    await saveCTData();
+    document.getElementById('ctAddOverlay').classList.remove('open');
+    renderCTAll();
+  };
+}
+document.getElementById('ctAddBtn').addEventListener('click', openCTAddModal);
+document.getElementById('ctSearchInput').addEventListener('input', e=>{
+  ctSearchTerm = e.target.value;
+  document.getElementById('ctSearchClearBtn').classList.toggle('show', ctSearchTerm.length > 0);
+  applyCTFilters(); renderCTTable();
+});
+document.getElementById('ctSearchClearBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('ctSearchInput');
+  input.value = ''; ctSearchTerm = '';
+  document.getElementById('ctSearchClearBtn').classList.remove('show');
+  applyCTFilters(); renderCTTable();
+  input.focus();
+});
+document.getElementById('ctPhaseFilter').addEventListener('change', e=>{ ctPhaseFilter = e.target.value; applyCTFilters(); renderCTTable(); });
+document.getElementById('ctDrawerOverlay').addEventListener('click', e=>{ if(e.target.id==='ctDrawerOverlay') closeCTDrawer(); });
+document.getElementById('ctAddOverlay').addEventListener('click', e=>{ if(e.target.id==='ctAddOverlay') document.getElementById('ctAddOverlay').classList.remove('open'); });
 
 /* ---------------- Wiring ---------------- */
 document.getElementById('searchInput').addEventListener('input', e=>{
@@ -1321,6 +1819,7 @@ document.getElementById('scheduleOverlay').addEventListener('click', e=>{ if(e.t
 function startApp(){
   (async function init(){
     await loadData();
+    await loadCTData();
     // ensure history items have stable hid
     state.records.forEach(r=>{
       (r.History||[]).forEach(h=>{ if(!h.hid) h.hid = Math.floor(Math.random()*1e9); });
