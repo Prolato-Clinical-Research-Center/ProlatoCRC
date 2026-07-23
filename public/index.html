@@ -405,6 +405,20 @@ footer{max-width:1360px;margin:0 auto;padding:0 28px 40px;color:var(--muted);fon
 
 <div class="overlay" id="drawerOverlay"><div class="drawer" id="drawer"></div></div>
 <div class="modal-overlay" id="addOverlay"><div class="modal" id="addModal"></div></div>
+<datalist id="cityOptionsList"></datalist>
+<datalist id="stateOptionsList">
+  <option value="AL"><option value="AK"><option value="AZ"><option value="AR"><option value="CA">
+  <option value="CO"><option value="CT"><option value="DE"><option value="FL"><option value="GA">
+  <option value="HI"><option value="ID"><option value="IL"><option value="IN"><option value="IA">
+  <option value="KS"><option value="KY"><option value="LA"><option value="ME"><option value="MD">
+  <option value="MA"><option value="MI"><option value="MN"><option value="MS"><option value="MO">
+  <option value="MT"><option value="NE"><option value="NV"><option value="NH"><option value="NJ">
+  <option value="NM"><option value="NY"><option value="NC"><option value="ND"><option value="OH">
+  <option value="OK"><option value="OR"><option value="PA"><option value="RI"><option value="SC">
+  <option value="SD"><option value="TN"><option value="TX"><option value="UT"><option value="VT">
+  <option value="VA"><option value="WA"><option value="WV"><option value="WI"><option value="WY">
+  <option value="DC">
+</datalist>
 <div class="modal-overlay" id="dayOverlay"><div class="modal" id="dayModal"></div></div>
 <div class="modal-overlay" id="scheduleOverlay"><div class="modal" id="scheduleModal"></div></div>
 <div class="modal-overlay" id="confirmOverlay"><div class="modal" id="confirmModal" style="max-width:400px;"></div></div>
@@ -679,6 +693,51 @@ function deriveCity(r){
   if(!/\d/.test(last) && last.length < 40) return last;
   return 'Unknown';
 }
+function parseAddressParts(addr){
+  addr = (addr||'').split('/')[0].trim();
+  if(!addr) return {line1:'', line2:'', city:'', state:'', zip:''};
+  const parts = addr.split(',').map(p=>p.trim()).filter(Boolean);
+  if(parts.length===0) return {line1:addr, line2:'', city:'', state:'', zip:''};
+  const last = parts[parts.length-1];
+  const pureStateZip = last.match(/^([A-Za-z]{2})\.?\s*(\d{5})?(-\d{4})?$/);
+  if(pureStateZip && parts.length>=2){
+    const state = pureStateZip[1].toUpperCase();
+    const zip = pureStateZip[2] || '';
+    const city = parts[parts.length-2] || '';
+    const rest = parts.slice(0, Math.max(parts.length-2,0));
+    return {line1: rest[0]||'', line2: rest.slice(1).join(', '), city, state, zip};
+  }
+  const combo = last.match(/^([A-Za-z][A-Za-z .'-]*?)\s+([A-Za-z]{2})\.?\s*(\d{5})?$/);
+  if(combo){
+    const city = combo[1].trim();
+    const state = combo[2].toUpperCase();
+    const zip = combo[3]||'';
+    const rest = parts.slice(0, parts.length-1);
+    return {line1: rest[0]||'', line2: rest.slice(1).join(', '), city, state, zip};
+  }
+  return {line1: addr, line2:'', city:'', state:'', zip:''};
+}
+function combineAddressParts(p){
+  const line1 = (p.line1||'').trim();
+  const line2 = (p.line2||'').trim();
+  const city = (p.city||'').trim();
+  const state = (p.state||'').trim().toUpperCase();
+  const zip = (p.zip||'').trim();
+  const segs = [];
+  if(line1) segs.push(line1);
+  if(line2) segs.push(line2);
+  let tail = city;
+  if(state) tail = tail ? `${tail}, ${state}` : state;
+  if(zip) tail = tail ? `${tail} ${zip}` : zip;
+  if(tail) segs.push(tail);
+  return segs.join(', ');
+}
+function refreshCityDatalist(){
+  const dl = document.getElementById('cityOptionsList');
+  if(!dl) return;
+  const cities = Array.from(new Set(state.records.map(r=>deriveCity(r)).filter(c=>c && c!=='Unknown'))).sort();
+  dl.innerHTML = cities.map(c=>`<option value="${escapeHtml(c)}">`).join('');
+}
 function populateCityFilter(){
   const sel = document.getElementById('cityFilter');
   const cities = Array.from(new Set(state.records.map(r=>deriveCity(r)).filter(Boolean))).sort();
@@ -770,6 +829,7 @@ function renderTable(){
 function renderAll(){
   applyFilters();
   populateCityFilter();
+  refreshCityDatalist();
   renderChips();
   renderStages();
   renderTable();
@@ -814,11 +874,24 @@ function openDrawer(id){
       <div class="field">
         <label>Addresses</label>
         <div id="addressList">
-          ${(r.Addresses&&r.Addresses.length ? r.Addresses : ['']).map(a=>`
-            <div class="list-row">
-              <input type="text" class="addr-input" value="${escapeHtml(a)}" placeholder="Street, city, state, zip">
-              <button type="button" class="list-del addr-del">&times;</button>
-            </div>`).join('')}
+          ${(r.Addresses&&r.Addresses.length ? r.Addresses : ['']).map(a=>{
+            const p = parseAddressParts(a);
+            return `
+            <div class="doctor-block addr-block">
+              <div class="field-row">
+                <div class="field"><label>Address line 1</label><input type="text" class="addr-line1" value="${escapeHtml(p.line1)}" placeholder="Street address"></div>
+                <button type="button" class="list-del addr-del" title="Remove this address">&times;</button>
+              </div>
+              <div class="field">
+                <label>Address line 2</label><input type="text" class="addr-line2" value="${escapeHtml(p.line2)}" placeholder="Suite, floor, building (optional)">
+              </div>
+              <div class="field-row">
+                <div class="field"><label>City</label><input type="text" class="addr-city" list="cityOptionsList" value="${escapeHtml(p.city)}" placeholder="e.g. Houston"></div>
+                <div class="field"><label>State</label><input type="text" class="addr-state" list="stateOptionsList" value="${escapeHtml(p.state)}" placeholder="TX" maxlength="2" style="text-transform:uppercase;"></div>
+                <div class="field"><label>Zip code</label><input type="text" class="addr-zip" value="${escapeHtml(p.zip)}" placeholder="77024"></div>
+              </div>
+            </div>`;
+          }).join('')}
         </div>
         <button class="btn ghost small" type="button" id="addAddressBtn">+ Add another address</button>
       </div>
@@ -922,14 +995,22 @@ function openDrawer(id){
   function syncFieldsFromDom(){
     r['Practice Name'] = document.getElementById('editPractice').value.trim();
     r.Specialty = document.getElementById('editSpecialty').value.trim();
-    r.Doctors = Array.from(document.querySelectorAll('.doctor-block')).map(block=>{
+    r.Doctors = Array.from(document.querySelectorAll('#doctorList .doctor-block')).map(block=>{
       const name = block.querySelector('.doc-name-input').value.trim();
       const channel = block.querySelector('.doc-channel-input').value.trim();
       const maContact = block.querySelector('.doc-ma-input').value.trim();
       const existingId = block.dataset.did;
       return (name||channel||maContact) ? {id: existingId || (Date.now()+Math.floor(Math.random()*1000)), name, channel, maContact} : null;
     }).filter(Boolean);
-    r.Addresses = Array.from(document.querySelectorAll('.addr-input')).map(i=>i.value.trim()).filter(v=>v);
+    const addressParts = Array.from(document.querySelectorAll('.addr-block')).map(block=>({
+      line1: block.querySelector('.addr-line1').value.trim(),
+      line2: block.querySelector('.addr-line2').value.trim(),
+      city: block.querySelector('.addr-city').value.trim(),
+      state: block.querySelector('.addr-state').value.trim(),
+      zip: block.querySelector('.addr-zip').value.trim()
+    })).filter(p=>p.line1||p.line2||p.city||p.state||p.zip);
+    r.Addresses = addressParts.map(combineAddressParts).filter(Boolean);
+    r.City = addressParts.length ? addressParts[0].city : '';
     r.Contacts = Array.from(document.querySelectorAll('.contact-input')).map(i=>i.value.trim()).filter(v=>v);
     r.Status = document.getElementById('editStatus').value;
     r.Notes = document.getElementById('editGeneralNotes').value.trim();
@@ -949,15 +1030,31 @@ function openDrawer(id){
       </div>`);
   };
   document.getElementById('addAddressBtn').onclick = ()=>{
-    document.getElementById('addressList').insertAdjacentHTML('beforeend',
-      `<div class="list-row"><input type="text" class="addr-input" placeholder="Street, city, state, zip"><button type="button" class="list-del addr-del">&times;</button></div>`);
+    document.getElementById('addressList').insertAdjacentHTML('beforeend', `
+      <div class="doctor-block addr-block">
+        <div class="field-row">
+          <div class="field"><label>Address line 1</label><input type="text" class="addr-line1" placeholder="Street address"></div>
+          <button type="button" class="list-del addr-del" title="Remove this address">&times;</button>
+        </div>
+        <div class="field">
+          <label>Address line 2</label><input type="text" class="addr-line2" placeholder="Suite, floor, building (optional)">
+        </div>
+        <div class="field-row">
+          <div class="field"><label>City</label><input type="text" class="addr-city" list="cityOptionsList" placeholder="e.g. Houston"></div>
+          <div class="field"><label>State</label><input type="text" class="addr-state" list="stateOptionsList" placeholder="TX" maxlength="2" style="text-transform:uppercase;"></div>
+          <div class="field"><label>Zip code</label><input type="text" class="addr-zip" placeholder="77024"></div>
+        </div>
+      </div>`);
   };
   document.getElementById('addContactBtn').onclick = ()=>{
     document.getElementById('contactList').insertAdjacentHTML('beforeend',
       `<div class="list-row"><input type="text" class="contact-input" placeholder="Phone or email"><button type="button" class="list-del contact-del">&times;</button></div>`);
   };
   drawer.onclick = (e)=>{
-    if(e.target.classList.contains('addr-del') || e.target.classList.contains('contact-del')){
+    if(e.target.classList.contains('addr-del')){
+      e.target.closest('.addr-block').remove();
+    }
+    if(e.target.classList.contains('contact-del')){
       e.target.closest('.list-row').remove();
     }
     if(e.target.classList.contains('doc-del')){
@@ -1094,7 +1191,13 @@ function openAddModal(){
         <div class="field"><label>Contact channel</label><input id="newDoctorChannel" placeholder="Direct phone, email, etc. (optional)"></div>
         <div class="field"><label>MA's contact</label><input id="newDoctorMA" placeholder="Medical assistant contact (optional)"></div>
       </div>
-      <div class="field"><label>Address</label><input id="newAddress"></div>
+      <div class="field"><label>Address line 1</label><input id="newAddrLine1" placeholder="Street address"></div>
+      <div class="field"><label>Address line 2</label><input id="newAddrLine2" placeholder="Suite, floor, building (optional)"></div>
+      <div class="field-row">
+        <div class="field"><label>City</label><input id="newAddrCity" list="cityOptionsList" placeholder="e.g. Houston"></div>
+        <div class="field"><label>State</label><input id="newAddrState" list="stateOptionsList" placeholder="TX" maxlength="2" style="text-transform:uppercase;"></div>
+        <div class="field"><label>Zip code</label><input id="newAddrZip" placeholder="77024"></div>
+      </div>
       <div class="field"><label>Practice phone / email</label><input id="newContact" placeholder="Front desk phone or email"></div>
       <div class="field"><label>Initial notes (optional first attempt)</label><textarea id="newNotes"></textarea></div>
     </div>
@@ -1115,12 +1218,21 @@ function openAddModal(){
     const notes = document.getElementById('newNotes').value.trim();
     const history = notes ? [{hid: Date.now(), date: new Date().toISOString().slice(0,10), type:'', notes, loggedBy: currentUserEmail||''}] : [];
     const doctors = (docName||docChannel||docMA) ? [{id: Date.now(), name: docName, channel: docChannel, maContact: docMA}] : [];
+    const addrParts = {
+      line1: document.getElementById('newAddrLine1').value.trim(),
+      line2: document.getElementById('newAddrLine2').value.trim(),
+      city: document.getElementById('newAddrCity').value.trim(),
+      state: document.getElementById('newAddrState').value.trim(),
+      zip: document.getElementById('newAddrZip').value.trim()
+    };
+    const combinedAddr = combineAddressParts(addrParts);
     state.records.push({
       id: maxId+1,
       'Doctors': doctors,
       'Specialty': document.getElementById('newSpecialty').value.trim(),
+      'City': addrParts.city,
       'Practice Name': practice,
-      'Addresses': document.getElementById('newAddress').value.trim() ? [document.getElementById('newAddress').value.trim()] : [],
+      'Addresses': combinedAddr ? [combinedAddr] : [],
       'Contacts': document.getElementById('newContact').value.trim() ? [document.getElementById('newContact').value.trim()] : [],
       'Status': document.getElementById('newStatus').value,
       'History': history,
